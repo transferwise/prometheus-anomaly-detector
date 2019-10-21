@@ -24,8 +24,6 @@ workflows:
     jobs:
       - upload-docker-image:
           context: kubernetes-production
-          requires:
-            - build
           filters:
             branches:
               only:
