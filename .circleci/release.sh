@@ -4,7 +4,7 @@ set -e
 
 BASE_REPO_NAME=docker.tw.ee/prometheus-anomaly-detector
 
-version=`cat VERSION`
+version=`cat ../VERSION`
 
 echo "Version read: $version"
 
