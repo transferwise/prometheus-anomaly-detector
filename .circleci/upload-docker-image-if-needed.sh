@@ -37,7 +37,7 @@ execute() {
     else
       echo "Library $DOCKER_IMAGE_NAME:$version is NOT published, publishing...";
       docker login --username "$DEPLOY_REGISTRY_USERNAME" --password "$DEPLOY_REGISTRY_PASSWORD" docker.tw.ee
-      cd ./release.sh
+      ./release.sh
     fi
 }
 
