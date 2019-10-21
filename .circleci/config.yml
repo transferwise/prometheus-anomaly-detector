@@ -1,0 +1,32 @@
+version: 2
+
+working_directory: &working_directory
+  working_directory: ~/prometheus-anomaly-detector
+
+jobs:
+  upload-docker-image:
+    <<: *working_directory
+    docker:
+      - image: circleci/buildpack-deps
+    steps:
+      - setup_remote_docker
+      - checkout
+      - attach_workspace:
+          at: ~/prometheus-anomaly-detector
+      - run:
+          name: Upload docker image if needed
+          command: |
+            ./.circleci/upload-docker-image-if-needed.sh
+
+workflows:
+  version: 2
+  build_and_publish:
+    jobs:
+      - upload-docker-image:
+          context: kubernetes-production
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
