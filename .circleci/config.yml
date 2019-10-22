@@ -16,7 +16,7 @@ jobs:
       - run:
           name: Upload docker image if needed
           command: |
-            ./.circleci/upload-docker-image-if-needed.sh
+            cd .circleci && ./upload-docker-image-if-needed.sh
 
 workflows:
   version: 2

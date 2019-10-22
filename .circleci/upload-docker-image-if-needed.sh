@@ -2,7 +2,7 @@
 
 set -e
 
-DOCKER_IMAGE_VERSION_FILE=VERSION
+DOCKER_IMAGE_VERSION_FILE=../VERSION
 DOCKER_IMAGE_NAME="prometheus-anomaly-detector"
 ARTIFACTORY_URL="https://arti.tw.ee/artifactory/docker-local"
 
