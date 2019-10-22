@@ -95,10 +95,21 @@ class MainHandler(tornado.web.RequestHandler):
         self.set_header("Content-Type", "text; charset=utf-8")
 
 
+class HealthHandler(tornado.web.RequestHandler):
+    """Tornado health request handler."""
+
+    def get(self):
+        self.write("UP")
+
+
 def make_app():
     """Initialize the tornado web app."""
     _LOGGER.info("Initializing Tornado Web App")
-    return tornado.web.Application([(r"/metrics", MainHandler), (r"/", MainHandler)])
+    return tornado.web.Application([
+        (r"/prometheus", MainHandler),
+        (r"/health", HealthHandler),
+        (r"/", MainHandler)
+    ])
 
 
 def train_model(initial_run=False):
