@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     # Start up the server to expose the metrics.
     app = make_app()
-    app.listen(8080)
+    app.listen(12345)
     scheduler = TornadoScheduler()
     _LOGGER.info(
         "Will retrain model every %s minutes", Configuration.retraining_interval_minutes
