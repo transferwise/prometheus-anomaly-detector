@@ -1,11 +1,12 @@
 """docstring for packages."""
-import time
-import os
+
 import logging
 from datetime import datetime
 import tornado.ioloop
 import tornado.web
 import tornado
+from multiprocessing import Pool, cpu_count
+from itertools import repeat
 from prometheus_client import Gauge, generate_latest, REGISTRY
 from apscheduler.schedulers.tornado import TornadoScheduler
 from prometheus_api_client import PrometheusConnect, Metric
@@ -112,36 +113,50 @@ def make_app():
     ])
 
 
+def train_predictor_model(predictor_model, initial_run=False):
+    metric_to_predict = predictor_model.metric
+
+    data_start_time = datetime.now() - Configuration.metric_chunk_size
+    if initial_run:
+        data_start_time = (
+                datetime.now() - Configuration.rolling_training_window_size
+        )
+
+    # Download new metric data from prometheus
+    new_metric_data = pc.get_metric_range_data(
+        metric_name=metric_to_predict.metric_name,
+        label_config=metric_to_predict.label_config,
+        start_time=data_start_time,
+        end_time=datetime.now(),
+    )[0]
+
+    # Train the new model
+    start_time = datetime.now()
+    predictor_model.train(
+        new_metric_data, Configuration.retraining_interval_minutes
+    )
+    _LOGGER.info(
+        "Total Training time taken = %s, for metric: %s %s",
+        str(datetime.now() - start_time),
+        metric_to_predict.metric_name,
+        metric_to_predict.label_config,
+    )
+    return predictor_model
+
+
 def train_model(initial_run=False):
     """Train the machine learning model."""
-    for predictor_model in PREDICTOR_MODEL_LIST:
-        metric_to_predict = predictor_model.metric
 
-        data_start_time = datetime.now() - Configuration.metric_chunk_size
-        if initial_run:
-            data_start_time = (
-                datetime.now() - Configuration.rolling_training_window_size
-            )
+    # use basic multiprocessing to parallelize the computation
+    pool = Pool(cpu_count())
+    predictor_models = pool.starmap(train_predictor_model, zip(PREDICTOR_MODEL_LIST, repeat(initial_run)))
 
-        # Download new metric data from prometheus
-        new_metric_data = pc.get_metric_range_data(
-            metric_name=metric_to_predict.metric_name,
-            label_config=metric_to_predict.label_config,
-            start_time=data_start_time,
-            end_time=datetime.now(),
-        )[0]
+    # override global once the training of each model is done, allowing the scraper to get the predictions
+    # while the models are retraining
+    PREDICTOR_MODEL_LIST.clear()
+    PREDICTOR_MODEL_LIST.extend(predictor_models)
 
-        # Train the new model
-        start_time = datetime.now()
-        predictor_model.train(
-            new_metric_data, Configuration.retraining_interval_minutes
-        )
-        _LOGGER.info(
-            "Total Training time taken = %s, for metric: %s %s",
-            str(datetime.now() - start_time),
-            metric_to_predict.metric_name,
-            metric_to_predict.label_config,
-        )
+    _LOGGER.info("Overall training done")
 
 
 if __name__ == "__main__":
