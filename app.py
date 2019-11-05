@@ -7,19 +7,23 @@ import tornado.web
 import tornado
 from multiprocessing import Pool, cpu_count
 from itertools import repeat
-from prometheus_client import Gauge, generate_latest, REGISTRY
+from prometheus_client import Gauge
 from apscheduler.schedulers.tornado import TornadoScheduler
 from prometheus_api_client import PrometheusConnect, Metric
 from configuration import Configuration
 import model
+import json
 
 # Set up logging
 _LOGGER = logging.getLogger(__name__)
-
 METRICS_LIST = Configuration.metrics_list
-
-
 PREDICTOR_MODEL_LIST = []
+
+
+def remove_thanos_labels(metric_dict):
+    if 'metric' in metric_dict and 'prometheus' in metric_dict['metric']:
+        del metric_dict['metric']['prometheus']
+
 
 pc = PrometheusConnect(
     url=Configuration.prometheus_url,
@@ -30,12 +34,15 @@ for metric in METRICS_LIST:
     # Initialize a predictor for all metrics first
     metric_init = pc.get_current_metric_value(metric_name=metric)
     for unique_metric in metric_init:
+        # hack to remove a label coming from Thanos which can easily change and break
+        remove_thanos_labels(unique_metric)
         PREDICTOR_MODEL_LIST.append(
             model.MetricPredictor(
                 unique_metric,
                 rolling_data_window_size=Configuration.rolling_training_window_size,
             )
         )
+
 
 # A gauge set for the predicted values
 GAUGE_DICT = dict()
@@ -115,20 +122,25 @@ def make_app():
 
 def train_predictor_model(predictor_model, initial_run=False):
     metric_to_predict = predictor_model.metric
-
     data_start_time = datetime.now() - Configuration.metric_chunk_size
     if initial_run:
         data_start_time = (
                 datetime.now() - Configuration.rolling_training_window_size
         )
+        # experimental
+        # initially train the model with the whole dataset
+        with open('notebooks/metrics/quote_accepted_cluster_1_sum_rate5m.json', 'r') as json_file:
+            new_metric_data = json.load(json_file)[0]
+    else:
+        # Download new metric data from prometheus
+        new_metric_data = pc.get_metric_range_data(
+            metric_name=metric_to_predict.metric_name,
+            label_config=metric_to_predict.label_config,
+            start_time=data_start_time,
+            end_time=datetime.now(),
+        )[0]
 
-    # Download new metric data from prometheus
-    new_metric_data = pc.get_metric_range_data(
-        metric_name=metric_to_predict.metric_name,
-        label_config=metric_to_predict.label_config,
-        start_time=data_start_time,
-        end_time=datetime.now(),
-    )[0]
+    remove_thanos_labels(new_metric_data)
 
     # Train the new model
     start_time = datetime.now()
