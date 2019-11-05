@@ -1,0 +1,14 @@
+version: '3.3'
+services:
+  prometheus-anomaly-detector:
+    build:
+      context: ./..
+      dockerfile: Dockerfile
+    ports:
+      - '12345:12345'
+    environment:
+    - FLT_PROM_URL='https://thanos-internal.tw.ee'
+    - FLT_METRICS_LIST='quote:accepted_total_v2:sum_rate5m{cluster="thanos-cluster.services.main01.eu-central-1.production.k8stw.com"}'
+    - FLT_ROLLING_TRAINING_WINDOW_SIZE=30d
+    - FLT_DEBUG_MODE=True
+    restart: on-failure
