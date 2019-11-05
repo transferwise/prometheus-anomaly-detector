@@ -17,7 +17,6 @@ if __name__ == '__main__':
        storing the output in a JSON file
     """
 
-
     parser = argparse.ArgumentParser()
     parser.add_argument("query", help="The PromQL query", type=str)
     parser.add_argument("dest_file", help="The filepath where to store the JSON fetched", type=str)
@@ -62,18 +61,21 @@ if __name__ == '__main__':
             else:
                 with open(dest_file_path, "r+") as file2:
                     json_file = json.load(file2)
-                    json_file[0]['values'].extend(json_response['data']['result'][0]['values'])
 
-                    log.info("The query returned %s data points", len(json_response['data']['result'][0]['values']))
-                    log.info("First timestamp added from the query: %s",
-                             format_timestamp(json_response['data']['result'][0]['values'][0][0]))
+                    if 'data' in json_response and len(json_response['data']['result']) > 0:
+                        json_file[0]['values'].extend(json_response['data']['result'][0]['values'])
+                        log.info("The query returned %s data points", len(json_response['data']['result'][0]['values']))
+                        log.info("First timestamp added from the query: %s",
+                                 format_timestamp(json_response['data']['result'][0]['values'][0][0]))
 
-                    log.info("Last timestamp added from the query: %s",
-                             format_timestamp(json_response['data']['result'][0]['values'][-1][0]))
+                        log.info("Last timestamp added from the query: %s",
+                                 format_timestamp(json_response['data']['result'][0]['values'][-1][0]))
 
-                    # point to the beginning to overwrite
-                    file2.seek(0)
-                    json.dump(json_file, file2)
+                        # point to the beginning to overwrite
+                        file2.seek(0)
+                        json.dump(json_file, file2)
+                    else:
+                        log.error("The query returned 0 results or failed, skipping range")
 
         date_start_time = date_start_time + timedelta(hours=2, minutes=5)
         date_end_time = date_start_time + timedelta(hours=2)
