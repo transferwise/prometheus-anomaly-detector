@@ -7,7 +7,7 @@ import tornado.web
 import tornado
 from multiprocessing import Pool, cpu_count
 from itertools import repeat
-from prometheus_client import Gauge
+from prometheus_client import Gauge, generate_latest, REGISTRY
 from apscheduler.schedulers.tornado import TornadoScheduler
 from prometheus_api_client import PrometheusConnect, Metric
 from configuration import Configuration
